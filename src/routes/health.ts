@@ -4,13 +4,10 @@
 
 import type { FastifyInstance } from "fastify";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const SERVICE_VERSION = readPkgVersion();
-const IBID_VERSION = readIbidVersion();
+const SERVICE_VERSION = readPkgVersion("package.json");
+const IBID_VERSION = readPkgVersion("node_modules/@bwthomas/ibid/package.json");
 
 export function registerHealthRoute(app: FastifyInstance, startedAt: number) {
   app.get("/health", async () => ({
@@ -21,24 +18,16 @@ export function registerHealthRoute(app: FastifyInstance, startedAt: number) {
   }));
 }
 
-function readPkgVersion(): string {
+/**
+ * Read a package.json version relative to the current working directory.
+ * Works identically in `node dist/server.js` (cwd = /app in Docker) and
+ * `vitest` runs (cwd = repo root). No `import.meta.url` gymnastics —
+ * those resolve differently after tsup bundles the source tree.
+ */
+function readPkgVersion(relativePath: string): string {
   try {
     const pkg = JSON.parse(
-      readFileSync(join(__dirname, "..", "..", "package.json"), "utf8"),
-    );
-    return String(pkg.version ?? "unknown");
-  } catch {
-    return "unknown";
-  }
-}
-
-function readIbidVersion(): string {
-  try {
-    const pkg = JSON.parse(
-      readFileSync(
-        join(__dirname, "..", "..", "node_modules", "@bwthomas", "ibid", "package.json"),
-        "utf8",
-      ),
+      readFileSync(join(process.cwd(), relativePath), "utf8"),
     );
     return String(pkg.version ?? "unknown");
   } catch {

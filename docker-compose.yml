@@ -1,0 +1,21 @@
+services:
+  ibid:
+    build: .
+    image: bwthomas/ibid-service:${IBID_VERSION:-latest}
+    environment:
+      IBID_SERVICE_AUTH: ${IBID_SERVICE_AUTH:?set IBID_SERVICE_AUTH to a 16+ char secret}
+      IBID_USER_AGENT: "ibid-service/0.1.0 (+https://github.com/bwthomas/ibid-service)"
+      LOG_LEVEL: ${IBID_LOG_LEVEL:-info}
+      NODE_ENV: ${NODE_ENV:-development}
+      # Uncomment to enable the LLM fallback strategy:
+      # IBID_LLM_ANTHROPIC_API_KEY: ${IBID_LLM_ANTHROPIC_API_KEY}
+      # IBID_LLM_ANTHROPIC_MODEL: ${IBID_LLM_ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+    ports:
+      - "${IBID_HOST_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
