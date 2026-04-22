@@ -44,5 +44,7 @@ export function createServiceIbid(
     timeoutMs: config.ibid.timeoutMs,
     crossrefEndpoint: config.ibid.crossrefEndpoint,
     citoidEndpoint: config.ibid.citoidEndpoint,
+    translationServerEndpoint:
+      config.ibid.translationServerEndpoint || undefined,
   });
 }

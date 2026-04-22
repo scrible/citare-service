@@ -24,6 +24,7 @@ this doc just enumerates what needs to be in place.
 | `IBID_USER_AGENT` | no | Default identifies this service; override to identify the consumer / its contact address for polite-pool upstreams (CrossRef). |
 | `IBID_LLM_ANTHROPIC_API_KEY` | no | Enables the LLM fallback strategy. Omit = no LLM calls. |
 | `IBID_LLM_ANTHROPIC_MODEL` | no | Defaults to `claude-haiku-4-5-20251001`. |
+| `IBID_TRANSLATION_SERVER_URL` | no | Root URL of a self-hosted Zotero translation-server. When set, the `TranslationServer` strategy fires for URL extractions and `CitoidUrl` is suppressed to avoid double-firing. Unset → Wikipedia Citoid continues to handle URL extractions. See §6 for the deploy-shape tradeoffs. |
 
 Full env var catalog lives in `SPEC.md` §7.
 
@@ -110,14 +111,53 @@ Always JSON. Status codes:
 Empty results (`confidence: 0`, no fields) are **not** errors — the service
 returns 200 with a stable shape so consumers can render / store uniformly.
 
-## 6. Observability
+## 6. URL-extraction backend choice
+
+Two deploy shapes are supported for URL extraction:
+
+### 6.1 Default — Wikipedia Citoid
+
+Free public service; no extra infrastructure. Subject to Wikipedia's
+Citoid rate limits, uptime, and whichever Zotero translators happen to
+be deployed there. Fine for low-volume production and local development.
+
+### 6.2 Optional — self-hosted Zotero translation-server sidecar
+
+Set `IBID_TRANSLATION_SERVER_URL` to route URL extractions through a
+Zotero translation-server instance you run. When set, the
+`TranslationServer` strategy (priority 70, baseline confidence 60) wins
+over `CitoidUrl` and `CitoidUrl` is suppressed for the same run.
+
+**Tradeoffs:**
+
+| | Citoid (default) | translation-server sidecar |
+|---|---|---|
+| Infrastructure | none | one more container |
+| Latency | ~1-3s (Wikipedia) | ~200-500ms (localhost) |
+| Uptime | Wikipedia's SLA | yours |
+| Privacy | URLs sent to Wikipedia | URLs stay inside your network |
+| Translator freshness | whatever Wikipedia ships | whatever image tag you pin |
+
+**AGPL compliance:** Zotero's translation-server is AGPL-3.0 licensed.
+ibid-service communicates with it over HTTP and does not embed, modify,
+or redistribute its source code. AGPL §13's conveying-modified-
+network-services obligations attach only when a modified version of an
+AGPL program is made available over a network. The reference
+`docker-compose.yml` entry uses the unmodified
+`zotero/translation-server:latest` image — no §13 obligation arises.
+**If you build your own modified translation-server image, you are
+responsible for your own §13 compliance**; that is out of scope for
+this service. Zotero's source is at
+<https://github.com/zotero/translation-server>.
+
+## 7. Observability
 
 Point a Prometheus scraper at `GET /metrics` with `X-Ibid-Auth`. Metrics
 prefix is `ibid_`. See `SPEC.md` §4.9 for the emitted series.
 
 Health probes should hit `GET /health` (no auth required).
 
-## 7. When to bump `ibid` vs bump this service
+## 8. When to bump `ibid` vs bump this service
 
 - New strategies, new extraction primitives → upgrade the `@bwthomas/ibid`
   pinned version in `package.json`, rebuild this image. Consumers see the
@@ -125,7 +165,7 @@ Health probes should hit `GET /health` (no auth required).
 - New endpoints, new routing behavior, auth changes → bump this service's
   own version; SPEC.md should reflect the new shape.
 
-## 8. Deferred rollout pattern (mirror-mode)
+## 9. Deferred rollout pattern (mirror-mode)
 
 When migrating consumer code from its own citation logic to this service,
 the recommended pattern (see `SPEC.md` §10.5):

@@ -10,6 +10,9 @@ services:
       # Uncomment to enable the LLM fallback strategy:
       # IBID_LLM_ANTHROPIC_API_KEY: ${IBID_LLM_ANTHROPIC_API_KEY}
       # IBID_LLM_ANTHROPIC_MODEL: ${IBID_LLM_ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+      # Uncomment to route URL extractions through a self-hosted Zotero
+      # translation-server sidecar (also uncomment the service below).
+      # IBID_TRANSLATION_SERVER_URL: http://translation-server:1969
     ports:
       - "${IBID_HOST_PORT:-3000}:3000"
     healthcheck:
@@ -19,3 +22,15 @@ services:
       start_period: 10s
       retries: 3
     restart: unless-stopped
+
+  # Optional: self-hosted Zotero translation-server sidecar. Uncomment (and
+  # the IBID_TRANSLATION_SERVER_URL env var on `ibid` above) to enable.
+  # Image is unmodified upstream — AGPL §13 obligations do not apply to
+  # ibid-service because we communicate over HTTP and do not redistribute
+  # the translation-server image itself. Source is at
+  # https://github.com/zotero/translation-server.
+  # translation-server:
+  #   image: zotero/translation-server:latest
+  #   ports:
+  #     - "${TRANSLATION_SERVER_HOST_PORT:-1969}:1969"
+  #   restart: unless-stopped

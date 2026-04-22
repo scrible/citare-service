@@ -15,6 +15,8 @@ export interface ServiceConfig {
     userAgent: string;
     crossrefEndpoint: string;
     citoidEndpoint: string;
+    /** Optional self-hosted Zotero translation-server endpoint. Empty → unset. */
+    translationServerEndpoint: string;
     timeoutMs: number;
   };
   cache: {
@@ -54,6 +56,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
       citoidEndpoint:
         env.IBID_CITOID_ENDPOINT ??
         "https://en.wikipedia.org/api/rest_v1/data/citation",
+      translationServerEndpoint: env.IBID_TRANSLATION_SERVER_URL ?? "",
       timeoutMs: Number(env.IBID_TIMEOUT_MS ?? 5_000),
     },
     cache: {

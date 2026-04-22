@@ -1,6 +1,6 @@
 {
   "name": "ibid-service",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "HTTP wrapper around @bwthomas/ibid for non-TypeScript consumers",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "ci": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
-    "@bwthomas/ibid": "^0.2.0",
+    "@bwthomas/ibid": "file:../ibid",
     "fastify": "^5.0.0",
     "linkedom": "^0.18.12",
     "lru-cache": "^11.0.0",

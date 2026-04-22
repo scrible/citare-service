@@ -24,6 +24,24 @@ Detailed provenance records — including sources consulted, license-boundary re
 
 Implementation has not begun. When it begins, an entry will be appended here naming the implementer, date, and commit range.
 
+## 2026-04-22 — Translation-server plumbing
+
+- Actor: Blake Thomas, with AI assistance (Anthropic Claude).
+- Added `IBID_TRANSLATION_SERVER_URL` env var; plumbed through
+  `src/config.ts` → `src/ibid-client.ts` → `createIbid({translationServerEndpoint})`.
+  When set, ibid's `TranslationServer` strategy fires and `CitoidUrl` is
+  suppressed for the same run.
+- Reference `docker-compose.yml` gains a commented-out
+  `translation-server` service using the unmodified
+  `zotero/translation-server:latest` image. Consumers uncomment to opt in.
+- `INTEGRATION.md` §6 documents the deploy-shape tradeoffs (Citoid
+  default vs self-hosted sidecar) and the AGPL §13 reasoning —
+  ibid-service communicates over HTTP and does not embed, modify, or
+  redistribute translation-server source code.
+- Tests: 2 new in `tests/translation-server.test.ts` verifying env-unset
+  → empty endpoint and env-set → endpoint passes through. Full suite
+  37/37 pass.
+
 ---
 
 ## Amendment rules
