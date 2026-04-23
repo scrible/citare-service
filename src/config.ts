@@ -29,7 +29,23 @@ export interface ServiceConfig {
     openlibrary: { capacity: number; refillPerSec: number };
   };
   llm:
-    | { provider: "anthropic"; apiKey: string; model: string }
+    | {
+        provider: "anthropic";
+        apiKey: string;
+        model: string;
+        /**
+         * Tuning knobs for freetext-search LLM rescue. All optional —
+         * `undefined` → the library's defaults in
+         * `@bwthomas/ibid/article-crossref-freetext`.
+         */
+        freetextRescue?: {
+          minScore?: number;
+          minTitleOverlap?: number;
+          maxCandidates?: number;
+          maxTokens?: number;
+          temperature?: number;
+        };
+      }
     | { provider: "none" };
 }
 
@@ -82,7 +98,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
           provider: "anthropic",
           apiKey: anthropicKey,
           model: env.IBID_LLM_ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
+          freetextRescue: {
+            minScore: numOrUndef(env.IBID_LLM_FREETEXT_MIN_SCORE),
+            minTitleOverlap: numOrUndef(env.IBID_LLM_FREETEXT_MIN_OVERLAP),
+            maxCandidates: numOrUndef(env.IBID_LLM_FREETEXT_MAX_CANDIDATES),
+            maxTokens: numOrUndef(env.IBID_LLM_FREETEXT_MAX_TOKENS),
+            temperature: numOrUndef(env.IBID_LLM_FREETEXT_TEMPERATURE),
+          },
         }
       : { provider: "none" },
   };
+}
+
+function numOrUndef(raw: string | undefined): number | undefined {
+  if (raw === undefined || raw === "") return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
 }
