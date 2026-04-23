@@ -47,12 +47,18 @@ A reasonable starting point for a latency-sensitive mixed-input consumer:
 ```
 IBID_SERVICE_AUTH=<16+ char secret>
 IBID_LLM_ANTHROPIC_API_KEY=<anthropic key>   # or AWS creds for Bedrock
-IBID_STRATEGY_CITOID_URL_ENABLED=false
+IBID_STRATEGY_CITOID_URL_ENABLED=false       # drop ibid's slowest built-in
+IBID_STRATEGY_LLM_ENABLED=false              # no URL-extraction LLM rescue
 # optional: IBID_LLM_ANTHROPIC_MODEL=us.amazon.nova-lite-v1:0  # Bedrock Converse
+# optional: IBID_CACHE_ENABLED=false         # disable in-memory LRU during ops
 ```
 
-Disabling `CitoidUrl` drops ibid's slowest built-in strategy from the pipeline;
-with the LLM wired, freetext rescue still covers the sparse-metadata tail.
+Disabling `CitoidUrl` drops ibid's slowest built-in strategy from the pipeline.
+Disabling the `Llm` strategy turns off URL-extraction LLM rescue — measurement
+on a K-12 research corpus (2026-04-23) showed it regresses quality at corpus
+scale while adding 500–1700ms per call. The freetext LLM rescue remains on
+independently (via `articleSearchAdapters`, not the `Llm` strategy), so messy
+author/title queries still benefit from LLM re-ranking at negligible cost.
 
 ### Strategy overrides (`IBID_STRATEGY_*`)
 
