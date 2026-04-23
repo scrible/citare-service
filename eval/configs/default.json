@@ -1,0 +1,39 @@
+{
+  "corpus": {
+    "doi": "../fixtures/doi.jsonl",
+    "url": "../fixtures/url.jsonl",
+    "ris": "../fixtures/ris.jsonl",
+    "legacyBib": "../fixtures/legacy-bib.jsonl",
+    "freetext": "../fixtures/freetext.jsonl"
+  },
+  "opsEnabled": [
+    "crossref_doi_lookup",
+    "parse_ris",
+    "crossref_field_search",
+    "extract_from_url",
+    "upgrade_legacy_bib"
+  ],
+  "usageWeights": {
+    "extract_from_url": 0.70,
+    "crossref_doi_lookup": 0.12,
+    "crossref_field_search": 0.08,
+    "parse_ris": 0.05,
+    "upgrade_legacy_bib": 0.05
+  },
+  "variants": [
+    {
+      "name": "haiku-4-5",
+      "provider": "bedrock-invoke",
+      "modelId": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "usdPerMtokIn": 1.0,
+      "usdPerMtokOut": 5.0,
+      "systemPromptOverrides": { "urlExtraction": null, "freetextRescue": null }
+    }
+  ],
+  "baseline": {
+    "enabled": false,
+    "modulePath": null
+  },
+  "pacingMs": 350,
+  "resultsDir": "../results"
+}
