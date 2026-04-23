@@ -1,6 +1,6 @@
 {
   "name": "@bwthomas/ibid-service",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "HTTP wrapper around @bwthomas/ibid for non-TypeScript consumers",
   "license": "MIT",
   "author": "Blake Thomas <bwthomas@users.noreply.github.com>",

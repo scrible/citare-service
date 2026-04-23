@@ -1,11 +1,26 @@
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../src/config.js";
 
 function env(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   return {
     IBID_SERVICE_AUTH: "0123456789abcdef0123",
+    // Force hermetic credential resolution — no accidental read of the
+    // host's real ~/.aws/credentials during tests. Individual tests that
+    // exercise profile resolution override this.
+    AWS_SHARED_CREDENTIALS_FILE: "/nonexistent-ibid-service-test-path",
     ...extra,
   } as NodeJS.ProcessEnv;
+}
+
+/** Write a credentials INI to a temp file and return its path. */
+function writeCredsFile(contents: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "ibid-service-creds-"));
+  const path = join(dir, "credentials");
+  writeFileSync(path, contents, "utf8");
+  return path;
 }
 
 describe("loadConfig — IBID_CACHE_ENABLED", () => {
@@ -92,6 +107,154 @@ describe("loadConfig — LLM provider selection", () => {
   it("ignores half-set AWS creds (only access key, no secret)", () => {
     const cfg = loadConfig(env({ AWS_ACCESS_KEY_ID: "AKIA-test" }));
     expect(cfg.llm.provider).toBe("none");
+  });
+
+  describe("Bedrock via AWS_PROFILE (matches AWS SDK convention)", () => {
+    it("resolves a named profile from a credentials file", () => {
+      const path = writeCredsFile(`
+[scrible-dev]
+aws_access_key_id = AKIA-FROM-PROFILE
+aws_secret_access_key = secret-from-profile
+`);
+      try {
+        const cfg = loadConfig(env({
+          AWS_PROFILE: "scrible-dev",
+          AWS_SHARED_CREDENTIALS_FILE: path,
+        }));
+        if (cfg.llm.provider !== "bedrock") throw new Error("wrong provider");
+        expect(cfg.llm.accessKeyId).toBe("AKIA-FROM-PROFILE");
+        expect(cfg.llm.secretAccessKey).toBe("secret-from-profile");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
+
+    it("picks the `default` profile when AWS_PROFILE is unset", () => {
+      const path = writeCredsFile(`
+[default]
+aws_access_key_id = AKIA-DEFAULT
+aws_secret_access_key = secret-default
+
+[scrible-dev]
+aws_access_key_id = AKIA-OTHER
+aws_secret_access_key = secret-other
+`);
+      try {
+        const cfg = loadConfig(env({ AWS_SHARED_CREDENTIALS_FILE: path }));
+        if (cfg.llm.provider !== "bedrock") throw new Error("wrong provider");
+        expect(cfg.llm.accessKeyId).toBe("AKIA-DEFAULT");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
+
+    it("env vars win when both profile AND explicit env creds are set", () => {
+      const path = writeCredsFile(`
+[scrible-dev]
+aws_access_key_id = AKIA-FROM-PROFILE
+aws_secret_access_key = secret-from-profile
+`);
+      try {
+        const cfg = loadConfig(env({
+          AWS_PROFILE: "scrible-dev",
+          AWS_SHARED_CREDENTIALS_FILE: path,
+          AWS_ACCESS_KEY_ID: "AKIA-FROM-ENV",
+          AWS_SECRET_ACCESS_KEY: "secret-from-env",
+        }));
+        if (cfg.llm.provider !== "bedrock") throw new Error("wrong provider");
+        expect(cfg.llm.accessKeyId).toBe("AKIA-FROM-ENV");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
+
+    it("captures aws_session_token when present", () => {
+      const path = writeCredsFile(`
+[sts-session]
+aws_access_key_id = ASIA-TEMP
+aws_secret_access_key = temp-secret
+aws_session_token = sts-token-from-profile
+`);
+      try {
+        const cfg = loadConfig(env({
+          AWS_PROFILE: "sts-session",
+          AWS_SHARED_CREDENTIALS_FILE: path,
+        }));
+        if (cfg.llm.provider !== "bedrock") throw new Error("wrong provider");
+        expect(cfg.llm.sessionToken).toBe("sts-token-from-profile");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
+
+    it("silently falls back to provider=none when creds file is missing", () => {
+      const cfg = loadConfig(env({
+        AWS_PROFILE: "scrible-dev",
+        AWS_SHARED_CREDENTIALS_FILE: "/nonexistent/path/credentials",
+      }));
+      expect(cfg.llm.provider).toBe("none");
+    });
+
+    it("silently falls back when profile not found in file", () => {
+      const path = writeCredsFile(`
+[some-other-profile]
+aws_access_key_id = AKIA-OTHER
+aws_secret_access_key = secret-other
+`);
+      try {
+        const cfg = loadConfig(env({
+          AWS_PROFILE: "scrible-dev",
+          AWS_SHARED_CREDENTIALS_FILE: path,
+        }));
+        expect(cfg.llm.provider).toBe("none");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
+
+    it("handles comments + blank lines in the credentials file", () => {
+      const path = writeCredsFile(`
+# top-level comment
+; another comment style
+
+[scrible-dev]
+# inline-ish
+aws_access_key_id = AKIA-PARSED
+aws_secret_access_key = secret-parsed  ; trailing comment should strip
+
+[other]
+aws_access_key_id = IGNORED
+`);
+      try {
+        const cfg = loadConfig(env({
+          AWS_PROFILE: "scrible-dev",
+          AWS_SHARED_CREDENTIALS_FILE: path,
+        }));
+        if (cfg.llm.provider !== "bedrock") throw new Error("wrong provider");
+        expect(cfg.llm.accessKeyId).toBe("AKIA-PARSED");
+        expect(cfg.llm.secretAccessKey).toBe("secret-parsed");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
+
+    it("supports `[profile foo]` section name convention (config file style)", () => {
+      const path = writeCredsFile(`
+[profile scrible-dev]
+aws_access_key_id = AKIA-CFGFILE
+aws_secret_access_key = secret-cfgfile
+`);
+      try {
+        const cfg = loadConfig(env({
+          AWS_PROFILE: "scrible-dev",
+          AWS_SHARED_CREDENTIALS_FILE: path,
+        }));
+        if (cfg.llm.provider !== "bedrock") throw new Error("wrong provider");
+        expect(cfg.llm.accessKeyId).toBe("AKIA-CFGFILE");
+      } finally {
+        rmSync(path, { force: true });
+      }
+    });
   });
 
   it("freetextRescue tuning env vars flow through to the picked provider", () => {

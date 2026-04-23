@@ -14,6 +14,10 @@ async function makeApp() {
   process.env.TEST_IBID_SERVICE_AUTH = TEST_SECRET;
   // Silence server logs during tests.
   process.env.LOG_LEVEL = "error";
+  // Hermetic LLM config — the host's ~/.aws/credentials would otherwise
+  // auto-wire a Bedrock adapter and register the Llm strategy, which
+  // these tests explicitly assert is off.
+  process.env.AWS_SHARED_CREDENTIALS_FILE = "/nonexistent-ibid-service-test-path";
   const { app } = await buildServer();
   return app;
 }

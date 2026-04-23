@@ -5,6 +5,10 @@
  * secret via `TEST_IBID_SERVICE_AUTH`, keeping production defaults strict.
  */
 
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 export interface ServiceConfig {
   port: number;
   authSecret: string;
@@ -132,15 +136,26 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
 
 /**
  * Pick the LLM provider at boot time. Precedence:
- *   1. Bedrock — if `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are
- *      both set. This matches the AWS SDK convention and covers
- *      AWS-native deployments (the common enterprise path).
- *   2. Anthropic direct — if `IBID_LLM_ANTHROPIC_API_KEY` is set.
- *   3. None — no LLM wiring; `CrossRefFreetext` rescue is skipped.
+ *   1. Bedrock via explicit env creds — if both `AWS_ACCESS_KEY_ID` and
+ *      `AWS_SECRET_ACCESS_KEY` are set. Highest precedence since
+ *      explicit env vars always win over profiles per AWS SDK convention.
+ *   2. Bedrock via AWS profile — if `AWS_PROFILE` is set (or `default`
+ *      profile exists) AND `~/.aws/credentials` has matching keys.
+ *      This matches AWS-native deployments where containers mount
+ *      `~/.aws:/root/.aws:ro` rather than passing keys through env
+ *      (see e.g. Scrible's rails service in their docker-compose).
+ *   3. Anthropic direct — if `IBID_LLM_ANTHROPIC_API_KEY` is set.
+ *   4. None — no LLM wiring; `CrossRefFreetext` rescue is skipped.
  *
  * When both Bedrock AND Anthropic creds are present, Bedrock wins and
  * a warning goes to stderr so the operator knows the Anthropic key is
  * being ignored. Silent precedence would be worse.
+ *
+ * Bedrock adapter (in `@bwthomas/ibid/llm-bedrock`) signs requests with
+ * hand-rolled SigV4 and requires explicit access key + secret — it has
+ * no AWS SDK dep, so it can't resolve profile files itself. This
+ * service does the profile → explicit-creds resolution at boot so the
+ * adapter stays pure.
  */
 function resolveLlmConfig(
   env: NodeJS.ProcessEnv,
@@ -153,11 +168,12 @@ function resolveLlmConfig(
     temperature: numOrUndef(env.IBID_LLM_FREETEXT_TEMPERATURE),
   };
 
-  const hasBedrock =
-    !!env.AWS_ACCESS_KEY_ID && !!env.AWS_SECRET_ACCESS_KEY;
+  const envCreds = resolveBedrockCredsFromEnv(env);
+  const profileCreds = envCreds ? null : resolveBedrockCredsFromProfile(env);
+  const bedrockCreds = envCreds ?? profileCreds;
   const anthropicKey = env.IBID_LLM_ANTHROPIC_API_KEY;
 
-  if (hasBedrock && anthropicKey) {
+  if (bedrockCreds && anthropicKey) {
     // Non-fatal — we pick Bedrock but tell the operator we're ignoring
     // the Anthropic key so misconfigurations don't hide.
     // eslint-disable-next-line no-console
@@ -167,7 +183,7 @@ function resolveLlmConfig(
         "unset one to silence this warning.",
     );
   }
-  if (hasBedrock) {
+  if (bedrockCreds) {
     return {
       provider: "bedrock",
       region:
@@ -178,9 +194,9 @@ function resolveLlmConfig(
       modelId:
         env.IBID_LLM_BEDROCK_MODEL ??
         "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-      accessKeyId: env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: env.AWS_SECRET_ACCESS_KEY!,
-      sessionToken: env.AWS_SESSION_TOKEN,
+      accessKeyId: bedrockCreds.accessKeyId,
+      secretAccessKey: bedrockCreds.secretAccessKey,
+      sessionToken: bedrockCreds.sessionToken,
       freetextRescue,
     };
   }
@@ -193,6 +209,83 @@ function resolveLlmConfig(
     };
   }
   return { provider: "none" };
+}
+
+interface BedrockCreds {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken?: string;
+}
+
+function resolveBedrockCredsFromEnv(env: NodeJS.ProcessEnv): BedrockCreds | null {
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) return null;
+  return {
+    accessKeyId: env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    sessionToken: env.AWS_SESSION_TOKEN,
+  };
+}
+
+/**
+ * Parse `~/.aws/credentials` INI for the named profile. Supports the
+ * standard keys (`aws_access_key_id`, `aws_secret_access_key`,
+ * `aws_session_token`) plus `credential_process` for completeness.
+ *
+ * Respects `$AWS_SHARED_CREDENTIALS_FILE` for custom paths. Falls back
+ * to `~/.aws/credentials`. Returns null silently on any read/parse
+ * failure — LLM just gets skipped, service boots normally.
+ */
+function resolveBedrockCredsFromProfile(env: NodeJS.ProcessEnv): BedrockCreds | null {
+  const profileName = env.AWS_PROFILE ?? "default";
+  const credsPath =
+    env.AWS_SHARED_CREDENTIALS_FILE ?? join(homedir(), ".aws", "credentials");
+  let contents: string;
+  try {
+    contents = readFileSync(credsPath, "utf8");
+  } catch {
+    return null;
+  }
+  const profile = parseIniProfile(contents, profileName);
+  if (!profile) return null;
+  const accessKeyId = profile["aws_access_key_id"];
+  const secretAccessKey = profile["aws_secret_access_key"];
+  if (!accessKeyId || !secretAccessKey) return null;
+  return {
+    accessKeyId,
+    secretAccessKey,
+    sessionToken: profile["aws_session_token"],
+  };
+}
+
+/**
+ * Minimal AWS-credentials-file INI parser. Returns the named profile's
+ * key/value pairs, or null if the profile isn't found. Section name
+ * can be either `[profile_name]` (credentials file convention) or
+ * `[profile profile_name]` (config file convention) — the latter
+ * supported for completeness though credentials file is the usual home.
+ */
+function parseIniProfile(
+  contents: string,
+  profileName: string,
+): Record<string, string> | null {
+  let current: Record<string, string> | null = null;
+  const sections: Record<string, Record<string, string>> = {};
+  for (const rawLine of contents.split(/\r?\n/)) {
+    const line = rawLine.replace(/[;#].*$/, "").trim();
+    if (!line) continue;
+    const sectionMatch = /^\[(.+)\]$/.exec(line);
+    if (sectionMatch && sectionMatch[1]) {
+      const name = sectionMatch[1].trim().replace(/^profile\s+/, "");
+      current = sections[name] ?? {};
+      sections[name] = current;
+      continue;
+    }
+    if (!current) continue;
+    const kv = /^([^=]+?)\s*=\s*(.*)$/.exec(line);
+    if (!kv || !kv[1] || kv[2] === undefined) continue;
+    current[kv[1].trim()] = kv[2].trim();
+  }
+  return sections[profileName] ?? null;
 }
 
 function numOrUndef(raw: string | undefined): number | undefined {
