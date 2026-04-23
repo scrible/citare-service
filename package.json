@@ -1,6 +1,6 @@
 {
   "name": "ibid-service",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "HTTP wrapper around @bwthomas/ibid for non-TypeScript consumers",
   "license": "MIT",
