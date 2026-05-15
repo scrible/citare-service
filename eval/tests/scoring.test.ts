@@ -36,10 +36,10 @@ describe("score CLI (black box)", () => {
         id: "doi-1",
         expected,
         baseline_pre: expected,
-        ibid_solo: { ...expected, DOI: undefined },
+        citare_solo: { ...expected, DOI: undefined },
         baseline_post: expected,
         baseline_pre_ms: 100,
-        ibid_solo_ms: 50,
+        citare_solo_ms: 50,
         baseline_post_ms: 80,
       };
       writeFileSync(

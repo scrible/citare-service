@@ -1,11 +1,11 @@
 /**
- * `ibid-service` — HTTP wrapper around @bwthomas/ibid.
+ * `citare-service` — HTTP wrapper around citare.
  *
  * Single-process Fastify server. All routes except `/health` require the
- * `X-Ibid-Auth` header (SPEC §4 preface). Graceful shutdown on SIGTERM.
+ * `X-Citare-Auth` header (SPEC §4 preface). Graceful shutdown on SIGTERM.
  *
  * This file is intentionally thin: it boots config, constructs the shared
- * ibid client, wires cache + upstream budget + metrics + auth, and
+ * citare client, wires cache + upstream budget + metrics + auth, and
  * registers routes. Per-route logic lives in `src/routes/`.
  */
 
@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 import { makeAuthHook } from "./auth.js";
 import { createServiceCache, createNoopServiceCache } from "./cache.js";
 import { loadConfig } from "./config.js";
-import { createServiceIbid } from "./ibid-client.js";
+import { createServiceCitare } from "./citare-client.js";
 import { registerExtractRoute } from "./routes/extract.js";
 import { registerHealthRoute } from "./routes/health.js";
 import { registerLookupCandidatesRoute } from "./routes/lookup-candidates.js";
@@ -62,7 +62,7 @@ export async function buildServer(
     : createNoopServiceCache();
   const budget = createUpstreamBudget(config.budget);
   const authHook = makeAuthHook(config.authSecret);
-  const client = createServiceIbid(
+  const client = createServiceCitare(
     config,
     {
       debug: (msg, meta) => app.log.debug(meta ?? {}, msg),

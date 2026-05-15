@@ -1,21 +1,21 @@
 /**
  * Harness-local Bedrock Converse adapter.
  *
- * Ibid's built-in `createBedrockLlm` is hard-coded to Anthropic's
+ * Citare's built-in `createBedrockLlm` is hard-coded to Anthropic's
  * InvokeModel body format. The `/converse` endpoint is provider-agnostic
  * — same request/response shape across Anthropic, Amazon Nova, Meta
  * Llama, Mistral, Cohere — so we can compare LLM backends apples-to-
  * apples by model-id swap alone. Lives here with the eval harness for
- * now; a future ibid release that folds this in upstream will let us
+ * now; a future citare release that folds this in upstream will let us
  * delete this file.
  *
- * Implements ibid's `LlmAdapter` contract (`complete(req)` →
- * `{ text, tokensUsed? }`) so it's drop-in for `createIbid({ llm })`
+ * Implements citare's `LlmAdapter` contract (`complete(req)` →
+ * `{ text, tokensUsed? }`) so it's drop-in for `createCitare({ llm })`
  * and `createCrossRefFreetext({ llm })`.
  */
 
 import { createHash, createHmac } from "node:crypto";
-import type { LlmAdapter, LlmRequest, LlmResponse } from "@bwthomas/ibid/types";
+import type { LlmAdapter, LlmRequest, LlmResponse } from "citare/types";
 
 export interface BedrockConverseCredentials {
   accessKeyId: string;
@@ -121,7 +121,7 @@ function resolveCredentials(
   return { accessKeyId: k, secretAccessKey: s, sessionToken: t };
 }
 
-// --------- SigV4 signer (mirrors ibid's llm-bedrock.ts) ---------------
+// --------- SigV4 signer (mirrors citare's llm-bedrock.ts) ---------------
 
 interface SignInput {
   method: "POST";

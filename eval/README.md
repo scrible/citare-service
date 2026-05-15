@@ -1,20 +1,20 @@
 # Citation-quality eval harness
 
-Config-driven comparison harness for the `@bwthomas/ibid` library.
+Config-driven comparison harness for the `citare` library.
 Sized for a few-hundred-item ground-truth corpus across 5 ops (DOI
 lookup, RIS parsing, CrossRef freetext search, URL extraction, legacy-bib
 upgrade). For each op, runs up to three pipelines per LLM variant:
 
-1. **baseline** — the host application's pre-ibid pipeline (e.g.
+1. **baseline** — the host application's pre-citare pipeline (e.g.
    a host app's legacy extraction pipeline). Opt-in via a `BaselineAdapter` module.
-2. **ibid solo** — library defaults, no LLM, no host fallbacks.
-3. **ibid post** — ibid primary with the variant's LLM, baseline
+2. **citare solo** — library defaults, no LLM, no host fallbacks.
+3. **citare post** — citare primary with the variant's LLM, baseline
    fallback when a method is exposed for the op.
 
 ## Quick start
 
 ```bash
-# From ibid-service repo root:
+# From citare-service repo root:
 npx tsx eval/harness.ts --config eval/configs/default.json
 npx tsx eval/score.ts --config eval/configs/default.json
 ```
@@ -52,7 +52,7 @@ be the default export:
 
 ```ts
 // host-baseline.ts
-import type { BaselineAdapter } from "/path/to/ibid-service/eval/baseline-adapter";
+import type { BaselineAdapter } from "/path/to/citare-service/eval/baseline-adapter";
 
 export default function(): BaselineAdapter {
   return {

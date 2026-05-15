@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { createServiceCache, createNoopServiceCache } from "../src/cache.js";
-import type { CachedResult } from "@bwthomas/ibid";
+import type { CachedResult } from "citare";
 
 describe("createNoopServiceCache", () => {
   it("returns null on get and silently drops sets", async () => {

@@ -2,10 +2,10 @@
  * Quality-bar comparison harness, config-driven.
  *
  * For each enabled op and each LLM variant, runs up to three pipelines:
- *   1. baseline (host-app pre-ibid) — only if a BaselineAdapter advertises
+ *   1. baseline (host-app pre-citare) — only if a BaselineAdapter advertises
  *      that op. Omitted otherwise.
- *   2. ibid solo — library defaults, no LLM, no host-app fallbacks.
- *   3. ibid post — ibid primary with the variant's LLM wired in, plus a
+ *   2. citare solo — library defaults, no LLM, no host-app fallbacks.
+ *   3. citare post — citare primary with the variant's LLM wired in, plus a
  *      baseline fallback when the adapter exposes the op.
  *
  * Output per variant:
@@ -27,14 +27,14 @@ import { pathToFileURL } from "node:url";
 import { parseHTML } from "linkedom";
 
 import {
-  createIbid,
-  parseRis as ibidParseRis,
-  upgradeLegacyBib as ibidUpgradeLegacyBib,
-} from "@bwthomas/ibid";
-import { createDomAdapterFromParser } from "@bwthomas/ibid/dom-linkedom";
-import { createBedrockLlm } from "@bwthomas/ibid/llm-bedrock";
-import { createAnthropicLlm } from "@bwthomas/ibid/llm-anthropic";
-import { createCrossRefFreetext } from "@bwthomas/ibid/article-crossref-freetext";
+  createCitare,
+  parseRis as citareParseRis,
+  upgradeLegacyBib as citareUpgradeLegacyBib,
+} from "citare";
+import { createDomAdapterFromParser } from "citare/dom-linkedom";
+import { createBedrockLlm } from "citare/llm-bedrock";
+import { createAnthropicLlm } from "citare/llm-anthropic";
+import { createCrossRefFreetext } from "citare/article-crossref-freetext";
 import type {
   CslJson,
   ExtractionResult,
@@ -42,7 +42,7 @@ import type {
   LlmAdapter,
   LlmRequest,
   LlmResponse,
-} from "@bwthomas/ibid";
+} from "citare";
 
 import { createBedrockConverse } from "./bedrock-converse.js";
 import {
@@ -192,20 +192,20 @@ function buildLlm(
   return wrapWithTelemetry(base, variant, state);
 }
 
-// --------- Ibid clients ----------------------------------------------
+// --------- Citare clients ----------------------------------------------
 
-const USER_AGENT = "ibid-service-eval/1.0 (eval@example.com)";
+const USER_AGENT = "citare-service-eval/1.0 (eval@example.com)";
 
-function buildIbidSolo() {
-  return createIbid({
+function buildCitareSolo() {
+  return createCitare({
     dom: createDomAdapterFromParser(parseHTML),
     userAgent: USER_AGENT,
   });
 }
 
-function buildIbidPost(llm: LlmAdapter | null) {
-  if (!llm) return buildIbidSolo();
-  return createIbid({
+function buildCitarePost(llm: LlmAdapter | null) {
+  if (!llm) return buildCitareSolo();
+  return createCitare({
     dom: createDomAdapterFromParser(parseHTML),
     userAgent: USER_AGENT,
     llm,
@@ -213,41 +213,41 @@ function buildIbidPost(llm: LlmAdapter | null) {
   });
 }
 
-async function ibidSoloDoiLookup(doi: string): Promise<Csl | null> {
+async function citareSoloDoiLookup(doi: string): Promise<Csl | null> {
   try {
-    const res: ExtractionResult = await buildIbidSolo().extractFromDoi(doi);
+    const res: ExtractionResult = await buildCitareSolo().extractFromDoi(doi);
     return res.csl ?? null;
   } catch {
     return null;
   }
 }
 
-async function ibidSoloExtractUrl(url: string): Promise<Csl | null> {
+async function citareSoloExtractUrl(url: string): Promise<Csl | null> {
   try {
-    const res: ExtractionResult = await buildIbidSolo().extractFromUrl(url);
+    const res: ExtractionResult = await buildCitareSolo().extractFromUrl(url);
     return res.csl ?? null;
   } catch {
     return null;
   }
 }
 
-function ibidSoloRis(text: string): Csl | null {
+function citareSoloRis(text: string): Csl | null {
   try {
-    return ibidParseRis(text).csl;
+    return citareParseRis(text).csl;
   } catch {
     return null;
   }
 }
 
-function ibidSoloLegacyBib(bib: Record<string, unknown>): Csl | null {
+function citareSoloLegacyBib(bib: Record<string, unknown>): Csl | null {
   try {
-    return ibidUpgradeLegacyBib(bib as LegacyBibHash).csl;
+    return citareUpgradeLegacyBib(bib as LegacyBibHash).csl;
   } catch {
     return null;
   }
 }
 
-async function ibidSoloFreetext(
+async function citareSoloFreetext(
   author: string | null,
   title: string | null,
   max = 5,
@@ -263,19 +263,19 @@ async function ibidSoloFreetext(
   }
 }
 
-async function ibidPostExtractUrl(
+async function citarePostExtractUrl(
   llm: LlmAdapter | null,
   url: string,
 ): Promise<Csl | null> {
   try {
-    const res: ExtractionResult = await buildIbidPost(llm).extractFromUrl(url);
+    const res: ExtractionResult = await buildCitarePost(llm).extractFromUrl(url);
     return res.csl ?? null;
   } catch {
     return null;
   }
 }
 
-async function ibidPostFreetext(
+async function citarePostFreetext(
   llm: LlmAdapter | null,
   author: string | null,
   title: string | null,
@@ -295,14 +295,14 @@ async function ibidPostFreetext(
   }
 }
 
-// --------- Post = ibid primary + baseline fallback --------------------
+// --------- Post = citare primary + baseline fallback --------------------
 
 async function postDoi(
   adapter: BaselineAdapter,
   doi: string,
 ): Promise<Csl | null> {
-  const ibid = await ibidSoloDoiLookup(doi);
-  if (ibid) return ibid;
+  const citare = await citareSoloDoiLookup(doi);
+  if (citare) return citare;
   return (await adapter.doiLookup?.(doi)) ?? null;
 }
 
@@ -311,14 +311,14 @@ async function postExtractUrl(
   llm: LlmAdapter | null,
   url: string,
 ): Promise<Csl | null> {
-  const ibid = await ibidPostExtractUrl(llm, url);
-  if (ibid) return ibid;
+  const citare = await citarePostExtractUrl(llm, url);
+  if (citare) return citare;
   return (await adapter.extractUrl?.(url)) ?? null;
 }
 
 function postParseRis(adapter: BaselineAdapter, text: string): Csl | null {
-  const ibid = ibidSoloRis(text);
-  if (ibid) return ibid;
+  const citare = citareSoloRis(text);
+  if (citare) return citare;
   return adapter.parseRis?.(text) ?? null;
 }
 
@@ -326,8 +326,8 @@ function postLegacyBib(
   adapter: BaselineAdapter,
   bib: Record<string, unknown>,
 ): Csl | null {
-  const ibid = ibidSoloLegacyBib(bib);
-  if (ibid) return ibid;
+  const citare = citareSoloLegacyBib(bib);
+  if (citare) return citare;
   return adapter.upgradeLegacyBib?.(bib) ?? null;
 }
 
@@ -338,8 +338,8 @@ async function postFreetext(
   title: string | null,
   max = 5,
 ): Promise<Csl[]> {
-  const ibid = await ibidPostFreetext(llm, author, title, max);
-  if (ibid.length > 0) return ibid;
+  const citare = await citarePostFreetext(llm, author, title, max);
+  if (citare.length > 0) return citare;
   return (await adapter.freetextSearch?.(author, title, max)) ?? [];
 }
 
@@ -404,13 +404,13 @@ interface PerItemRecord {
   input: unknown;
   expected: unknown;
   baseline_pre?: unknown;
-  ibid_solo?: unknown;
+  citare_solo?: unknown;
   baseline_post: unknown;
   baseline_pre_ms?: number;
-  ibid_solo_ms?: number;
+  citare_solo_ms?: number;
   baseline_post_ms: number;
   baseline_pre_top5?: unknown;
-  ibid_solo_top5?: unknown;
+  citare_solo_top5?: unknown;
   baseline_post_top5?: unknown;
 }
 
@@ -465,9 +465,9 @@ async function runVariant(
         await sleep(pace);
       }
       if (runSolo) {
-        const r = await timed(() => ibidSoloDoiLookup(doi));
-        rec.ibid_solo = r.value;
-        rec.ibid_solo_ms = r.ms;
+        const r = await timed(() => citareSoloDoiLookup(doi));
+        rec.citare_solo = r.value;
+        rec.citare_solo_ms = r.ms;
         await sleep(pace);
       }
       const r = await timed(() => postDoi(baseline, doi));
@@ -502,9 +502,9 @@ async function runVariant(
         rec.baseline_pre_ms = r.ms;
       }
       if (runSolo) {
-        const r = timedSync(() => ibidSoloRis(ris));
-        rec.ibid_solo = r.value;
-        rec.ibid_solo_ms = r.ms;
+        const r = timedSync(() => citareSoloRis(ris));
+        rec.citare_solo = r.value;
+        rec.citare_solo_ms = r.ms;
       }
       const r = timedSync(() => postParseRis(baseline, ris));
       rec.baseline_post = r.value;
@@ -549,10 +549,10 @@ async function runVariant(
         await sleep(pace);
       }
       if (runSolo) {
-        const r = await timed(() => ibidSoloFreetext(author, title, 5));
-        rec.ibid_solo = r.value[0] ?? null;
-        rec.ibid_solo_top5 = r.value.slice(0, 5).map((x) => x.DOI ?? null);
-        rec.ibid_solo_ms = r.ms;
+        const r = await timed(() => citareSoloFreetext(author, title, 5));
+        rec.citare_solo = r.value[0] ?? null;
+        rec.citare_solo_top5 = r.value.slice(0, 5).map((x) => x.DOI ?? null);
+        rec.citare_solo_ms = r.ms;
         await sleep(pace);
       }
       const r = await timed(() => postFreetext(baseline, llm, author, title, 5));
@@ -589,9 +589,9 @@ async function runVariant(
         await sleep(pace);
       }
       if (runSolo) {
-        const r = await timed(() => ibidSoloExtractUrl(url));
-        rec.ibid_solo = r.value;
-        rec.ibid_solo_ms = r.ms;
+        const r = await timed(() => citareSoloExtractUrl(url));
+        rec.citare_solo = r.value;
+        rec.citare_solo_ms = r.ms;
         await sleep(pace);
       }
       const r = await timed(() => postExtractUrl(baseline, llm, url));
@@ -629,9 +629,9 @@ async function runVariant(
         rec.baseline_pre_ms = r.ms;
       }
       if (runSolo) {
-        const r = timedSync(() => ibidSoloLegacyBib(bib));
-        rec.ibid_solo = r.value;
-        rec.ibid_solo_ms = r.ms;
+        const r = timedSync(() => citareSoloLegacyBib(bib));
+        rec.citare_solo = r.value;
+        rec.citare_solo_ms = r.ms;
       }
       const r = timedSync(() => postLegacyBib(baseline, bib));
       rec.baseline_post = r.value;

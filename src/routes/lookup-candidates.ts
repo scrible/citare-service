@@ -8,10 +8,10 @@
  */
 
 import type { FastifyInstance } from "fastify";
-import type { CandidateLookupInput } from "@bwthomas/ibid";
+import type { CandidateLookupInput } from "citare";
 import { z } from "zod";
 
-import type { IbidClient } from "../ibid-client.js";
+import type { CitareClient } from "../citare-client.js";
 
 const candidateInputSchema = z.discriminatedUnion("kind", [
   z.object({
@@ -30,7 +30,7 @@ const candidateInputSchema = z.discriminatedUnion("kind", [
 
 export function registerLookupCandidatesRoute(
   app: FastifyInstance,
-  client: IbidClient,
+  client: CitareClient,
 ) {
   app.post("/lookup-candidates", async (req, reply) => {
     const parsed = candidateInputSchema.safeParse(req.body);

@@ -7,13 +7,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const SERVICE_VERSION = readPkgVersion("package.json");
-const IBID_VERSION = readPkgVersion("node_modules/@bwthomas/ibid/package.json");
+const CITARE_VERSION = readPkgVersion("node_modules/citare/package.json");
 
 export function registerHealthRoute(app: FastifyInstance, startedAt: number) {
   app.get("/health", async () => ({
     ok: true,
     version: SERVICE_VERSION,
-    ibidVersion: IBID_VERSION,
+    citareVersion: CITARE_VERSION,
     uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
   }));
 }

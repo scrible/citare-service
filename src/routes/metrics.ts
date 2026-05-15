@@ -35,41 +35,41 @@ export function createMetrics(): MetricsBundle {
   const registry = new Registry();
   collectDefaultMetrics({ register: registry });
   const requestsTotal = new Counter({
-    name: "ibid_requests_total",
+    name: "citare_requests_total",
     help: "Total number of /extract /normalize /parse-* requests seen.",
     labelNames: ["endpoint", "status"],
     registers: [registry],
   });
   const requestDuration = new Histogram({
-    name: "ibid_request_duration_ms",
+    name: "citare_request_duration_ms",
     help: "Service-side request latency in milliseconds.",
     labelNames: ["endpoint", "status"],
     buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000, 10_000],
     registers: [registry],
   });
   const cacheHitsTotal = new Counter({
-    name: "ibid_cache_hits_total",
+    name: "citare_cache_hits_total",
     help: "Cache hits on the in-memory LRU.",
     registers: [registry],
   });
   const cacheMissesTotal = new Counter({
-    name: "ibid_cache_misses_total",
+    name: "citare_cache_misses_total",
     help: "Cache misses on the in-memory LRU.",
     registers: [registry],
   });
   const cacheSize = new Gauge({
-    name: "ibid_cache_size",
+    name: "citare_cache_size",
     help: "Current number of entries in the in-memory LRU cache.",
     registers: [registry],
   });
   const budgetDeniedTotal = new Counter({
-    name: "ibid_budget_denied_total",
+    name: "citare_budget_denied_total",
     help: "Count of /extract requests denied by per-upstream rate limits.",
     labelNames: ["upstream"],
     registers: [registry],
   });
   const strategyRunsTotal = new Counter({
-    name: "ibid_strategy_runs_total",
+    name: "citare_strategy_runs_total",
     help: "Count of ExtractionStrategy runs keyed by strategy name and outcome.",
     labelNames: ["strategy", "outcome"],
     registers: [registry],

@@ -1,16 +1,16 @@
 {
-  "name": "@bwthomas/ibid-service",
-  "version": "0.5.1",
-  "description": "HTTP wrapper around @bwthomas/ibid for non-TypeScript consumers",
+  "name": "citare-service",
+  "version": "0.5.2",
+  "description": "HTTP wrapper around citare for non-TypeScript consumers",
   "license": "MIT",
   "author": "Blake Thomas <bwthomas@users.noreply.github.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bwthomas/ibid-service.git"
+    "url": "git+https://github.com/bwthomas/citare-service.git"
   },
-  "homepage": "https://github.com/bwthomas/ibid-service#readme",
+  "homepage": "https://github.com/bwthomas/citare-service#readme",
   "bugs": {
-    "url": "https://github.com/bwthomas/ibid-service/issues"
+    "url": "https://github.com/bwthomas/citare-service/issues"
   },
   "type": "module",
   "engines": {
@@ -26,7 +26,7 @@
     "ci": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
-    "@bwthomas/ibid": "file:../ibid",
+    "citare": "file:../citare",
     "fastify": "^5.0.0",
     "linkedom": "^0.18.12",
     "lru-cache": "^11.0.0",

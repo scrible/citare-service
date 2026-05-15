@@ -9,14 +9,14 @@ import { buildServer } from "../src/server.js";
 const TEST_SECRET = "test-secret-abcdefghijklmnop";
 
 async function makeApp() {
-  process.env.TEST_IBID_SERVICE_AUTH = TEST_SECRET;
+  process.env.TEST_CITARE_SERVICE_AUTH = TEST_SECRET;
   process.env.LOG_LEVEL = "error";
   const { app } = await buildServer();
   return app;
 }
 
 describe("/lookup-candidates", () => {
-  it("401s without X-Ibid-Auth", async () => {
+  it("401s without X-Citare-Auth", async () => {
     const app = await makeApp();
     const res = await app.inject({
       method: "POST",
@@ -32,7 +32,7 @@ describe("/lookup-candidates", () => {
     const res = await app.inject({
       method: "POST",
       url: "/lookup-candidates",
-      headers: { "x-ibid-auth": TEST_SECRET },
+      headers: { "x-citare-auth": TEST_SECRET },
       payload: { kind: "nonsense" },
     });
     expect(res.statusCode).toBe(400);
@@ -45,7 +45,7 @@ describe("/lookup-candidates", () => {
     const res = await app.inject({
       method: "POST",
       url: "/lookup-candidates",
-      headers: { "x-ibid-auth": TEST_SECRET },
+      headers: { "x-citare-auth": TEST_SECRET },
       payload: { kind: "bookTitle", title: "nothing" },
     });
     expect(res.statusCode).toBe(200);

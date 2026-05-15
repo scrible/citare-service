@@ -1,28 +1,28 @@
 ---
-name: ibid-service
+name: citare-service
 version_spec_applies_to: 0.1.0
 spec_status: draft
 spec_date: 2026-04-19
 inspired_by: a standard thin-HTTP-wrapper pattern (Fastify on Node 18, Docker, HAProxy, ECS) common to internal npm-package-backing services.
-depends_on_spec: SPEC.md (v0.1) for the `@bwthomas/ibid` package
+depends_on_spec: SPEC.md (v0.1) for the `citare` package
 ---
 
-# ibid-service — HTTP wrapper specification
+# citare-service — HTTP wrapper specification
 
-**Service:** `ibid-service`
+**Service:** `citare-service`
 **Target version:** `0.1.0`
 **Language:** TypeScript, Node 18+.
 **Framework:** Fastify.
 **Deployment:** Docker container, HAProxy route, ECS task. Mirrors the `y-websocket` deployment shape exactly (zero-incremental ops for the on-call team).
-**Depends on:** `@bwthomas/ibid@^0.1.0` as a first-party npm dependency.
+**Depends on:** `citare@^0.1.0` as a first-party npm dependency.
 
-This document specifies **behavior only**. It is the authoritative contract. The implementation agent should read this document + the `@bwthomas/ibid` package SPEC.md and produce a working service without consulting any prior work.
+This document specifies **behavior only**. It is the authoritative contract. The implementation agent should read this document + the `citare` package SPEC.md and produce a working service without consulting any prior work.
 
 ---
 
 ## 1. Purpose
 
-Expose the `@bwthomas/ibid` package's pure-function API over HTTP so non-TypeScript consumers (Ruby, Java, toolbars in browser runtimes without the npm dependency, etc.) can call a single source of truth for citation extraction. Eliminates cross-runtime duplication of extraction logic.
+Expose the `citare` package's pure-function API over HTTP so non-TypeScript consumers (Ruby, Java, toolbars in browser runtimes without the npm dependency, etc.) can call a single source of truth for citation extraction. Eliminates cross-runtime duplication of extraction logic.
 
 ---
 
@@ -44,11 +44,11 @@ Rails / Java / toolbar2 (browser via HAProxy)
           │ HTTPS POST, JSON
           ▼
      HAProxy (port 443)
-          │ route: /ws/ibid/*  OR /api/ibid/*
+          │ route: /ws/citare/*  OR /api/citare/*
           ▼
-   ibid-service (Fastify, Node 18)
+   citare-service (Fastify, Node 18)
      ├── in-memory LRU cache (bounded)
-     ├── @bwthomas/ibid client
+     ├── citare client
      └── structured logger (pino) → STDOUT → CloudWatch
           │ outbound
           ▼
@@ -61,7 +61,7 @@ The service is stateless across restarts. The in-memory cache is best-effort; on
 
 ## 4. Endpoints
 
-All endpoints require the header `X-Ibid-Auth: <shared_secret>`. Secret is a 32+ char random string from the service's environment (`IBID_SERVICE_AUTH`). Missing/bad header → `401`.
+All endpoints require the header `X-Citare-Auth: <shared_secret>`. Secret is a 32+ char random string from the service's environment (`CITARE_SERVICE_AUTH`). Missing/bad header → `401`.
 
 All endpoints accept `Content-Type: application/json` unless otherwise specified. Responses are `application/json`.
 
@@ -180,7 +180,7 @@ Thin wrapper over `client.upgradeLegacyBib(legacy)` for consumers migrating from
 
 **Response:**
 ```json
-{"ok": true, "version": "0.1.0", "ibidVersion": "0.1.0", "uptimeSeconds": 12345}
+{"ok": true, "version": "0.1.0", "citareVersion": "0.1.0", "uptimeSeconds": 12345}
 ```
 
 No auth required on `/health` (HAProxy healthchecks).
@@ -188,13 +188,13 @@ No auth required on `/health` (HAProxy healthchecks).
 ### 4.9 `GET /metrics`
 
 Prometheus text format. Exposes:
-- `ibid_requests_total{endpoint, status}` — counter
-- `ibid_request_duration_ms_bucket{endpoint, le}` — histogram
-- `ibid_strategy_runs_total{strategy, outcome}` — counter (from package provenance)
-- `ibid_upstream_calls_total{upstream, status}` — counter (crossref, citoid, openlibrary)
-- `ibid_cache_hits_total` / `ibid_cache_misses_total`
+- `citare_requests_total{endpoint, status}` — counter
+- `citare_request_duration_ms_bucket{endpoint, le}` — histogram
+- `citare_strategy_runs_total{strategy, outcome}` — counter (from package provenance)
+- `citare_upstream_calls_total{upstream, status}` — counter (crossref, citoid, openlibrary)
+- `citare_cache_hits_total` / `citare_cache_misses_total`
 
-Auth required (same `X-Ibid-Auth` header) to prevent internet-facing metrics leakage if the reverse-proxy misconfigures. The scrape job configures the secret.
+Auth required (same `X-Citare-Auth` header) to prevent internet-facing metrics leakage if the reverse-proxy misconfigures. The scrape job configures the secret.
 
 ---
 
@@ -234,21 +234,21 @@ All configuration via environment variables. No config file.
 |---|---|---|
 | `PORT` | `3000` | Listen port inside container |
 | `HOST` | `0.0.0.0` | Bind address |
-| `IBID_SERVICE_AUTH` | **required** | 32+ char shared secret |
-| `IBID_USER_AGENT` | `ibid-service/0.1.0 (+https://github.com/bwthomas/ibid-service)` | Passed to package `userAgent` |
-| `IBID_TIMEOUT_MS` | `5000` | Per-strategy timeout |
-| `IBID_CACHE_MAX` | `10000` | LRU cache max entries |
-| `IBID_LOG_LEVEL` | `info` | `trace|debug|info|warn|error|fatal` |
-| `IBID_CITOID_ENDPOINT` | `https://en.wikipedia.org/api/rest_v1/data/citation` | Override Citoid |
-| `IBID_CROSSREF_ENDPOINT` | `https://api.crossref.org` | Override CrossRef |
-| `IBID_LLM_ANTHROPIC_API_KEY` | unset | If set (and no AWS creds), register the Anthropic-direct `Llm` adapter |
-| `IBID_LLM_ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Anthropic-direct default model |
+| `CITARE_SERVICE_AUTH` | **required** | 32+ char shared secret |
+| `CITARE_USER_AGENT` | `citare-service/0.1.0 (+https://github.com/bwthomas/citare-service)` | Passed to package `userAgent` |
+| `CITARE_TIMEOUT_MS` | `5000` | Per-strategy timeout |
+| `CITARE_CACHE_MAX` | `10000` | LRU cache max entries |
+| `CITARE_LOG_LEVEL` | `info` | `trace|debug|info|warn|error|fatal` |
+| `CITARE_CITOID_ENDPOINT` | `https://en.wikipedia.org/api/rest_v1/data/citation` | Override Citoid |
+| `CITARE_CROSSREF_ENDPOINT` | `https://api.crossref.org` | Override CrossRef |
+| `CITARE_LLM_ANTHROPIC_API_KEY` | unset | If set (and no AWS creds), register the Anthropic-direct `Llm` adapter |
+| `CITARE_LLM_ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Anthropic-direct default model |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | unset | If both set, register the AWS Bedrock `Llm` adapter (takes precedence over Anthropic when both are configured) |
 | `AWS_REGION` / `AWS_DEFAULT_REGION` | `us-east-1` (fallback) | Bedrock region |
-| `IBID_LLM_BEDROCK_REGION` | unset | Override the AWS region for Bedrock only (leaves other AWS calls alone) |
-| `IBID_LLM_BEDROCK_MODEL` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrock model ID (cross-region profile) |
+| `CITARE_LLM_BEDROCK_REGION` | unset | Override the AWS region for Bedrock only (leaves other AWS calls alone) |
+| `CITARE_LLM_BEDROCK_MODEL` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrock model ID (cross-region profile) |
 | `AWS_SESSION_TOKEN` | unset | Optional STS session token; passed through to the Bedrock adapter |
-| `IBID_LLM_FREETEXT_MIN_SCORE` / `_MIN_OVERLAP` / `_MAX_CANDIDATES` / `_MAX_TOKENS` / `_TEMPERATURE` | unset | Tune the `CrossRefFreetext` LLM rescue thresholds (see ibid SPEC §8.1.2) |
+| `CITARE_LLM_FREETEXT_MIN_SCORE` / `_MIN_OVERLAP` / `_MAX_CANDIDATES` / `_MAX_TOKENS` / `_TEMPERATURE` | unset | Tune the `CrossRefFreetext` LLM rescue thresholds (see citare SPEC §8.1.2) |
 
 Missing required env var → fail-fast at startup with a clear error (not a generic `undefined`).
 
@@ -257,15 +257,15 @@ Missing required env var → fail-fast at startup with a clear error (not a gene
 ## 8. Logging
 
 - Structured JSON via `pino`. One log line per request (`requestCompleted`) at INFO level, including: endpoint, status, durationMs, bytesIn, bytesOut, strategyName (for /extract), confidence (for /extract), upstreamCalls count.
-- Strategy-level warnings from the package surface as INFO logs with `category: 'ibid-strategy'`.
+- Strategy-level warnings from the package surface as INFO logs with `category: 'citare-strategy'`.
 - Errors (programmer errors from the package, upstream 5xx, JSON parse fail) log at WARN or ERROR with stack trace if available.
-- Secrets (`IBID_SERVICE_AUTH`, `IBID_LLM_*_API_KEY`) never appear in logs. The pino serializer strips them.
+- Secrets (`CITARE_SERVICE_AUTH`, `CITARE_LLM_*_API_KEY`) never appear in logs. The pino serializer strips them.
 
 ---
 
 ## 9. Cache
 
-In-memory LRU, bounded by `IBID_CACHE_MAX` entries (default 10K). Keys match the package's cache-key format (`ibid:v1:{doi|canonical_url|isbn}`).
+In-memory LRU, bounded by `CITARE_CACHE_MAX` entries (default 10K). Keys match the package's cache-key format (`citare:v1:{doi|canonical_url|isbn}`).
 
 - TTL: 24 hours. After TTL, entry is evicted and next request re-computes.
 - `pipelineVersion` invalidation: if the package is upgraded (new `pipelineVersion`), cache entries from the old version are ignored on read and overwritten on write.
@@ -295,12 +295,12 @@ CMD ["node", "dist/server.js"]
 
 ```yaml
 services:
-  ibid:
+  citare:
     build: .
-    image: bwthomas/ibid-service:${IBID_VERSION:-latest}
+    image: bwthomas/citare-service:${CITARE_VERSION:-latest}
     environment:
-      IBID_SERVICE_AUTH: ${IBID_SERVICE_AUTH}
-      IBID_USER_AGENT: "ibid-service/0.1.0 (+https://github.com/bwthomas/ibid-service)"
+      CITARE_SERVICE_AUTH: ${CITARE_SERVICE_AUTH}
+      CITARE_USER_AGENT: "citare-service/0.1.0 (+https://github.com/bwthomas/citare-service)"
       # ...other env per §7
     ports:
       - "3000:3000"
@@ -310,7 +310,7 @@ services:
 
 ### 10.3 HAProxy route
 
-Route `https://<host>/api/ibid/*` to the ibid backend. Strip `/api/ibid` prefix; forward `/extract`, `/normalize`, etc. to the service. Preserve `X-Ibid-Auth` header.
+Route `https://<host>/api/citare/*` to the citare backend. Strip `/api/citare` prefix; forward `/extract`, `/normalize`, etc. to the service. Preserve `X-Citare-Auth` header.
 
 ### 10.4 ECS task definition
 
@@ -320,7 +320,7 @@ Single container, 512 MB memory limit, 0.25 vCPU reserve. 2 tasks behind a rever
 
 When a consumer migrates legacy citation logic to this service, the recommended rollout:
 
-1. Deploy `ibid-service` alongside existing citation logic.
+1. Deploy `citare-service` alongside existing citation logic.
 2. The consumer calls both paths (old + new) in parallel on 1% of requests.
 3. Compare results; log divergence to a separate stream.
 4. After 7 days of low divergence, ramp to 10% → 50% → 100% read traffic.
@@ -357,7 +357,7 @@ Every 500 response includes a `requestId` for log correlation. Request IDs are g
 ### 12.2 Integration tests (service + mocked package)
 
 - `/extract` with stubbed package client returning various `ExtractionResult` shapes → response shape matches.
-- Cache read path: two identical requests → second is served from cache (detectable via logs or a test-only header `X-Ibid-Cache: hit|miss`).
+- Cache read path: two identical requests → second is served from cache (detectable via logs or a test-only header `X-Citare-Cache: hit|miss`).
 - Upstream budget: simulate rapid-fire; assert 429.
 
 ### 12.3 End-to-end (opt-in)
@@ -365,7 +365,7 @@ Every 500 response includes a `requestId` for log correlation. Request IDs are g
 - With real CrossRef endpoint: `/extract` with `{kind: 'doi', doi: '10.1000/...'}` returns a CSL item.
 - With real Citoid: `/extract` with `{kind: 'url', url: 'https://en.wikipedia.org/wiki/Test'}` succeeds.
 
-Default-off; gated by `IBID_E2E=1`.
+Default-off; gated by `CITARE_E2E=1`.
 
 ### 12.4 Load test
 

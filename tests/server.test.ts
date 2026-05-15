@@ -11,13 +11,13 @@ import { buildServer } from "../src/server.js";
 const TEST_SECRET = "test-secret-abcdefghijklmnop";
 
 async function makeApp() {
-  process.env.TEST_IBID_SERVICE_AUTH = TEST_SECRET;
+  process.env.TEST_CITARE_SERVICE_AUTH = TEST_SECRET;
   // Silence server logs during tests.
   process.env.LOG_LEVEL = "error";
   // Hermetic LLM config — the host's ~/.aws/credentials would otherwise
   // auto-wire a Bedrock adapter and register the Llm strategy, which
   // these tests explicitly assert is off.
-  process.env.AWS_SHARED_CREDENTIALS_FILE = "/nonexistent-ibid-service-test-path";
+  process.env.AWS_SHARED_CREDENTIALS_FILE = "/nonexistent-citare-service-test-path";
   const { app } = await buildServer();
   return app;
 }
@@ -30,14 +30,14 @@ describe("/health", () => {
     const body = res.json();
     expect(body.ok).toBe(true);
     expect(typeof body.version).toBe("string");
-    expect(typeof body.ibidVersion).toBe("string");
+    expect(typeof body.citareVersion).toBe("string");
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0);
     await app.close();
   });
 });
 
 describe("auth", () => {
-  it("401s when X-Ibid-Auth is missing on a protected route", async () => {
+  it("401s when X-Citare-Auth is missing on a protected route", async () => {
     const app = await makeApp();
     const res = await app.inject({
       method: "POST",
@@ -49,14 +49,14 @@ describe("auth", () => {
     await app.close();
   });
 
-  it("401s when X-Ibid-Auth is wrong", async () => {
+  it("401s when X-Citare-Auth is wrong", async () => {
     const app = await makeApp();
     const res = await app.inject({
       method: "POST",
       url: "/parse-ris",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": "wrong-secret",
+        "x-citare-auth": "wrong-secret",
       },
       payload: { text: "TY  - JOUR\nTI  - X\nER  - " },
     });
@@ -73,7 +73,7 @@ describe("/parse-ris", () => {
       url: "/parse-ris",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: { text: "TY  - JOUR\nTI  - Sample title\nAU  - Doe, Jane\nER  - \n" },
     });
@@ -93,7 +93,7 @@ describe("/parse-ris", () => {
       url: "/parse-ris",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: {},
     });
@@ -110,7 +110,7 @@ describe("/normalize", () => {
       url: "/normalize",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: {
         csl: {
@@ -137,7 +137,7 @@ describe("/extract", () => {
       url: "/extract",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: { kind: "nope" },
     });
@@ -152,7 +152,7 @@ describe("/extract", () => {
       url: "/extract",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: { kind: "text", text: "hello" },
     });
@@ -168,8 +168,8 @@ describe("/extract", () => {
 
 describe("/extract — upstream budget", () => {
   it("429s with retry-after when the crossref bucket is empty", async () => {
-    process.env.IBID_BUDGET_CROSSREF_CAPACITY = "1";
-    process.env.IBID_BUDGET_CROSSREF_REFILL_PER_SEC = "0.001"; // no meaningful refill during the test
+    process.env.CITARE_BUDGET_CROSSREF_CAPACITY = "1";
+    process.env.CITARE_BUDGET_CROSSREF_REFILL_PER_SEC = "0.001"; // no meaningful refill during the test
     const app = await makeApp();
     // First DOI call consumes the single token.
     const first = await app.inject({
@@ -177,7 +177,7 @@ describe("/extract — upstream budget", () => {
       url: "/extract",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: { kind: "doi", doi: "10.1000/fake" },
     });
@@ -188,7 +188,7 @@ describe("/extract — upstream budget", () => {
       url: "/extract",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: { kind: "doi", doi: "10.1000/fake2" },
     });
@@ -197,14 +197,14 @@ describe("/extract — upstream budget", () => {
     expect(body.error).toBe("upstream_budget");
     expect(body.upstream).toBe("crossref");
     expect(second.headers["retry-after"]).toBeDefined();
-    delete process.env.IBID_BUDGET_CROSSREF_CAPACITY;
-    delete process.env.IBID_BUDGET_CROSSREF_REFILL_PER_SEC;
+    delete process.env.CITARE_BUDGET_CROSSREF_CAPACITY;
+    delete process.env.CITARE_BUDGET_CROSSREF_REFILL_PER_SEC;
     await app.close();
   });
 
   it("does not gate html-kind inputs (no dedicated upstream)", async () => {
-    process.env.IBID_BUDGET_CITOID_CAPACITY = "1";
-    process.env.IBID_BUDGET_CITOID_REFILL_PER_SEC = "0.001";
+    process.env.CITARE_BUDGET_CITOID_CAPACITY = "1";
+    process.env.CITARE_BUDGET_CITOID_REFILL_PER_SEC = "0.001";
     const app = await makeApp();
     // Two html calls in a row — neither consumes the citoid bucket because
     // the gate only fires for url/doi/isbn inputs.
@@ -214,14 +214,14 @@ describe("/extract — upstream budget", () => {
         url: "/extract",
         headers: {
           "content-type": "application/json",
-          "x-ibid-auth": TEST_SECRET,
+          "x-citare-auth": TEST_SECRET,
         },
         payload: { kind: "html", html: "<html></html>" },
       });
       expect(res.statusCode).toBe(200);
     }
-    delete process.env.IBID_BUDGET_CITOID_CAPACITY;
-    delete process.env.IBID_BUDGET_CITOID_REFILL_PER_SEC;
+    delete process.env.CITARE_BUDGET_CITOID_CAPACITY;
+    delete process.env.CITARE_BUDGET_CITOID_REFILL_PER_SEC;
     await app.close();
   });
 });
@@ -236,18 +236,18 @@ describe("/metrics", () => {
       url: "/parse-ris",
       headers: {
         "content-type": "application/json",
-        "x-ibid-auth": TEST_SECRET,
+        "x-citare-auth": TEST_SECRET,
       },
       payload: { text: "TY  - JOUR\nER  - " },
     });
     const res = await app.inject({
       method: "GET",
       url: "/metrics",
-      headers: { "x-ibid-auth": TEST_SECRET },
+      headers: { "x-citare-auth": TEST_SECRET },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.body).toMatch(/ibid_requests_total/);
-    expect(res.body).toMatch(/ibid_request_duration_ms/);
+    expect(res.body).toMatch(/citare_requests_total/);
+    expect(res.body).toMatch(/citare_request_duration_ms/);
     await app.close();
   });
 
@@ -260,19 +260,19 @@ describe("/metrics", () => {
 });
 
 describe("LLM adapter wiring", () => {
-  it("registers the Llm strategy when IBID_LLM_ANTHROPIC_API_KEY is set", async () => {
-    process.env.TEST_IBID_SERVICE_AUTH = TEST_SECRET;
-    process.env.IBID_LLM_ANTHROPIC_API_KEY = "test-key";
+  it("registers the Llm strategy when CITARE_LLM_ANTHROPIC_API_KEY is set", async () => {
+    process.env.TEST_CITARE_SERVICE_AUTH = TEST_SECRET;
+    process.env.CITARE_LLM_ANTHROPIC_API_KEY = "test-key";
     const { buildServer } = await import("../src/server.js");
     const { client, app } = await buildServer();
     expect(client.listStrategies().map((s) => s.name)).toContain("Llm");
-    delete process.env.IBID_LLM_ANTHROPIC_API_KEY;
+    delete process.env.CITARE_LLM_ANTHROPIC_API_KEY;
     await app.close();
   });
 
   it("does not register Llm strategy when no key is set", async () => {
-    process.env.TEST_IBID_SERVICE_AUTH = TEST_SECRET;
-    delete process.env.IBID_LLM_ANTHROPIC_API_KEY;
+    process.env.TEST_CITARE_SERVICE_AUTH = TEST_SECRET;
+    delete process.env.CITARE_LLM_ANTHROPIC_API_KEY;
     const { buildServer } = await import("../src/server.js");
     const { client, app } = await buildServer();
     expect(client.listStrategies().map((s) => s.name)).not.toContain("Llm");
@@ -282,7 +282,7 @@ describe("LLM adapter wiring", () => {
 
 describe("config", () => {
   beforeAll(() => {
-    delete process.env.IBID_SERVICE_AUTH;
+    delete process.env.CITARE_SERVICE_AUTH;
   });
 
   it("refuses to start without a secret", async () => {

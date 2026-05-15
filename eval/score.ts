@@ -46,10 +46,10 @@ interface RawRecord {
   id: string;
   expected: Record<string, unknown>;
   baseline_pre?: Record<string, unknown> | null;
-  ibid_solo?: Record<string, unknown> | null;
+  citare_solo?: Record<string, unknown> | null;
   baseline_post: Record<string, unknown> | null;
   baseline_pre_ms?: number;
-  ibid_solo_ms?: number;
+  citare_solo_ms?: number;
   baseline_post_ms?: number;
 }
 
@@ -264,14 +264,14 @@ function main() {
   const weights = config.usageWeights;
 
   // Pick the "baseline donor" — first variant whose raw file has any
-  // non-null baseline_pre OR ibid_solo records. Those columns are
+  // non-null baseline_pre OR citare_solo records. Those columns are
   // LLM-invariant (pre doesn't use LLM; solo doesn't either) so any
   // full-mode run is equivalent.
   let baselineDonor: string | null = null;
   const baselineRecords = new Map<string, RawRecord>();
   for (const v of variantNames) {
     const raws = loadJsonl<RawRecord>(join(resultsDir, `raw-${v}.jsonl`));
-    if (raws.some((r) => r.baseline_pre !== undefined || r.ibid_solo !== undefined)) {
+    if (raws.some((r) => r.baseline_pre !== undefined || r.citare_solo !== undefined)) {
       baselineDonor = v;
       for (const r of raws) baselineRecords.set(`${r.op}|${r.id}`, r);
       break;
@@ -306,13 +306,13 @@ function main() {
       .map((r) => scoreItem(r.expected, r.baseline_pre))
       .filter((s): s is Record<Dim, number> => s != null);
     const soloScores = items
-      .map((r) => scoreItem(r.expected, r.ibid_solo))
+      .map((r) => scoreItem(r.expected, r.citare_solo))
       .filter((s): s is Record<Dim, number> => s != null);
     const preLat = items
       .map((r) => r.baseline_pre_ms)
       .filter((m): m is number => typeof m === "number");
     const soloLat = items
-      .map((r) => r.ibid_solo_ms)
+      .map((r) => r.citare_solo_ms)
       .filter((m): m is number => typeof m === "number");
     const preCell = emptyCell();
     const soloCell = emptyCell();
@@ -417,7 +417,7 @@ function main() {
       `| baseline pre | ${preWeighted} | ${preP50} | ${preP95} | — | $0 |`,
     );
     lines.push(
-      `| ibid solo | ${soloWeighted} | ${soloP50} | ${soloP95} | — | $0 |`,
+      `| citare solo | ${soloWeighted} | ${soloP50} | ${soloP95} | — | $0 |`,
     );
   }
   for (const v of variantNames) {
@@ -427,18 +427,18 @@ function main() {
     const p95 = weightedLat(per, 0.95);
     const cost = costByVariant.get(v)!;
     lines.push(
-      `| post-ibid + ${v} | **${wq}** | ${p50} | ${p95} | ${cost.calls} | $${cost.totalUsd.toFixed(5)} |`,
+      `| post-citare + ${v} | **${wq}** | ${p50} | ${p95} | ${cost.calls} | $${cost.totalUsd.toFixed(5)} |`,
     );
   }
   lines.push("");
 
   // Per-op × variant quality
-  lines.push("## Post-ibid quality per op × variant");
+  lines.push("## Post-citare quality per op × variant");
   lines.push("");
   lines.push(
     "| Op | " +
       variantNames.join(" | ") +
-      (baselineDonor ? " | ibid solo | baseline pre |" : " |"),
+      (baselineDonor ? " | citare solo | baseline pre |" : " |"),
   );
   lines.push(
     "|---|" +
@@ -459,12 +459,12 @@ function main() {
   lines.push("");
 
   // Latency p50 per op × variant
-  lines.push("## Latency p50 (ms) per op × variant — post-ibid state only");
+  lines.push("## Latency p50 (ms) per op × variant — post-citare state only");
   lines.push("");
   lines.push(
     "| Op | " +
       variantNames.join(" | ") +
-      (baselineDonor ? " | ibid solo | baseline pre |" : " |"),
+      (baselineDonor ? " | citare solo | baseline pre |" : " |"),
   );
   lines.push(
     "|---|" +

@@ -5,13 +5,13 @@
  */
 
 import type { FastifyInstance } from "fastify";
-import { parseEasyBib, parseRis, upgradeLegacyBib } from "@bwthomas/ibid";
-import type { LegacyBibHash } from "@bwthomas/ibid";
+import { parseEasyBib, parseRis, upgradeLegacyBib } from "citare";
+import type { LegacyBibHash } from "citare";
 import { z } from "zod";
 
-import type { IbidClient } from "../ibid-client.js";
+import type { CitareClient } from "../citare-client.js";
 
-export function registerParserRoutes(app: FastifyInstance, client: IbidClient) {
+export function registerParserRoutes(app: FastifyInstance, client: CitareClient) {
   app.post("/parse-ris", async (req, reply) => {
     const parsed = z.object({ text: z.string().min(1) }).safeParse(req.body);
     if (!parsed.success) {

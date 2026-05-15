@@ -9,10 +9,10 @@
  */
 
 import type { FastifyInstance } from "fastify";
-import type { ExtractInput } from "@bwthomas/ibid";
+import type { ExtractInput } from "citare";
 import { z } from "zod";
 
-import type { IbidClient } from "../ibid-client.js";
+import type { CitareClient } from "../citare-client.js";
 import {
   recordBudgetDeny,
   type MetricsBundle,
@@ -51,7 +51,7 @@ const extractInputSchema = z.discriminatedUnion("kind", [
 
 export function registerExtractRoute(
   app: FastifyInstance,
-  client: IbidClient,
+  client: CitareClient,
   budget: UpstreamBudget,
   metrics: MetricsBundle,
 ) {

@@ -1,20 +1,20 @@
 services:
-  ibid:
+  citare:
     build: .
-    image: bwthomas/ibid-service:${IBID_VERSION:-latest}
+    image: bwthomas/citare-service:${CITARE_VERSION:-latest}
     environment:
-      IBID_SERVICE_AUTH: ${IBID_SERVICE_AUTH:?set IBID_SERVICE_AUTH to a 16+ char secret}
-      IBID_USER_AGENT: "ibid-service/0.1.0 (+https://github.com/bwthomas/ibid-service)"
-      LOG_LEVEL: ${IBID_LOG_LEVEL:-info}
+      CITARE_SERVICE_AUTH: ${CITARE_SERVICE_AUTH:?set CITARE_SERVICE_AUTH to a 16+ char secret}
+      CITARE_USER_AGENT: "citare-service/0.1.0 (+https://github.com/bwthomas/citare-service)"
+      LOG_LEVEL: ${CITARE_LOG_LEVEL:-info}
       NODE_ENV: ${NODE_ENV:-development}
       # Uncomment to enable the LLM fallback strategy:
-      # IBID_LLM_ANTHROPIC_API_KEY: ${IBID_LLM_ANTHROPIC_API_KEY}
-      # IBID_LLM_ANTHROPIC_MODEL: ${IBID_LLM_ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
+      # CITARE_LLM_ANTHROPIC_API_KEY: ${CITARE_LLM_ANTHROPIC_API_KEY}
+      # CITARE_LLM_ANTHROPIC_MODEL: ${CITARE_LLM_ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
       # Uncomment to route URL extractions through a self-hosted Zotero
       # translation-server sidecar (also uncomment the service below).
-      # IBID_TRANSLATION_SERVER_URL: http://translation-server:1969
+      # CITARE_TRANSLATION_SERVER_URL: http://translation-server:1969
     ports:
-      - "${IBID_HOST_PORT:-3000}:3000"
+      - "${CITARE_HOST_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:3000/health"]
       interval: 30s
@@ -24,9 +24,9 @@ services:
     restart: unless-stopped
 
   # Optional: self-hosted Zotero translation-server sidecar. Uncomment (and
-  # the IBID_TRANSLATION_SERVER_URL env var on `ibid` above) to enable.
+  # the CITARE_TRANSLATION_SERVER_URL env var on `citare` above) to enable.
   # Image is unmodified upstream — AGPL §13 obligations do not apply to
-  # ibid-service because we communicate over HTTP and do not redistribute
+  # citare-service because we communicate over HTTP and do not redistribute
   # the translation-server image itself. Source is at
   # https://github.com/zotero/translation-server.
   # translation-server:

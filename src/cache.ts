@@ -1,14 +1,14 @@
 /**
- * In-memory LRU cache implementing ibid's `CacheAdapter`. SPEC §9.
+ * In-memory LRU cache implementing citare's `CacheAdapter`. SPEC §9.
  *
- * The package owns the key format (ibid:v1:{doi|canonical_url|isbn}); this
+ * The package owns the key format (citare:v1:{doi|canonical_url|isbn}); this
  * module just stores and evicts. TTL is uniform — pipelineVersion mismatches
  * are ignored on read by the package's merge step, so a stale entry loses
  * cleanly on its own.
  */
 
 import { LRUCache } from "lru-cache";
-import type { CacheAdapter, CachedResult } from "@bwthomas/ibid";
+import type { CacheAdapter, CachedResult } from "citare";
 
 export interface CacheCounters {
   hits: number;
@@ -49,7 +49,7 @@ export function createServiceCache(options: {
 }
 
 /**
- * No-op ServiceCache used when `IBID_CACHE_ENABLED=false` at the env
+ * No-op ServiceCache used when `CITARE_CACHE_ENABLED=false` at the env
  * layer. Returns null on every get, drops every set, reports size 0
  * and 0/0 hits/misses. Lets operators disable a configured cache
  * backend during incidents without a redeploy.

@@ -9,7 +9,7 @@ import type { FastifyInstance } from "fastify";
 import {
   canonicalizeUrl,
   filterFieldsByType,
-} from "@bwthomas/ibid";
+} from "citare";
 import { z } from "zod";
 
 const bodySchema = z.object({

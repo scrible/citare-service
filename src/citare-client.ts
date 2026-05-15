@@ -1,5 +1,5 @@
 /**
- * Shared `@bwthomas/ibid` client. Built once at server startup and
+ * Shared `citare` client. Built once at server startup and
  * handed to every route. Wires the configured DOM adapter (linkedom),
  * pino child logger, shared LRU cache, and (when configured) an LLM
  * adapter — Anthropic-direct or AWS Bedrock, depending on which creds
@@ -17,28 +17,28 @@
  * semantics): Bedrock > Anthropic > none.
  */
 
-import { createIbid } from "@bwthomas/ibid";
-import { createDomAdapterFromParser } from "@bwthomas/ibid/dom-linkedom";
-import { createAnthropicLlm } from "@bwthomas/ibid/llm-anthropic";
-import { createBedrockLlm } from "@bwthomas/ibid/llm-bedrock";
-import { createCrossRefFreetext } from "@bwthomas/ibid/article-crossref-freetext";
-import type { CacheAdapter, LlmAdapter, Logger } from "@bwthomas/ibid";
+import { createCitare } from "citare";
+import { createDomAdapterFromParser } from "citare/dom-linkedom";
+import { createAnthropicLlm } from "citare/llm-anthropic";
+import { createBedrockLlm } from "citare/llm-bedrock";
+import { createCrossRefFreetext } from "citare/article-crossref-freetext";
+import type { CacheAdapter, LlmAdapter, Logger } from "citare";
 import { parseHTML } from "linkedom";
 
 import type { FreetextRescueConfig, ServiceConfig } from "./config.js";
 
-export type IbidClient = ReturnType<typeof createIbid>;
+export type CitareClient = ReturnType<typeof createCitare>;
 
 /**
- * Construct the shared ibid client. Called once; the returned client is
+ * Construct the shared citare client. Called once; the returned client is
  * thread-safe (strategies are pure functions, and every `extract()` starts
  * from a fresh Context).
  */
-export function createServiceIbid(
+export function createServiceCitare(
   config: ServiceConfig,
   logger: Logger,
   cache: CacheAdapter,
-): IbidClient {
+): CitareClient {
   const dom = createDomAdapterFromParser(
     (html) => parseHTML(html) as { document: unknown },
   );
@@ -53,7 +53,7 @@ export function createServiceIbid(
     ? [
         createCrossRefFreetext({
           llm,
-          userAgent: config.ibid.userAgent,
+          userAgent: config.citare.userAgent,
           llmRescue: {
             rescueMinScore: freetextRescue?.minScore,
             rescueMinTitleTokenOverlap: freetextRescue?.minTitleOverlap,
@@ -65,25 +65,25 @@ export function createServiceIbid(
       ]
     : [];
 
-  return createIbid({
+  return createCitare({
     dom,
     logger,
     cache,
     llm,
     articleSearchAdapters,
-    userAgent: config.ibid.userAgent,
-    timeoutMs: config.ibid.timeoutMs,
-    crossrefEndpoint: config.ibid.crossrefEndpoint,
-    citoidEndpoint: config.ibid.citoidEndpoint,
+    userAgent: config.citare.userAgent,
+    timeoutMs: config.citare.timeoutMs,
+    crossrefEndpoint: config.citare.crossrefEndpoint,
+    citoidEndpoint: config.citare.citoidEndpoint,
     translationServerEndpoint:
-      config.ibid.translationServerEndpoint || undefined,
-    strategyOverrides: config.ibid.strategyOverrides,
+      config.citare.translationServerEndpoint || undefined,
+    strategyOverrides: config.citare.strategyOverrides,
   });
 }
 
 /**
  * Materialize the configured LLM adapter (or `undefined` when no
- * provider is configured). Kept out of `createServiceIbid` so tests
+ * provider is configured). Kept out of `createServiceCitare` so tests
  * can exercise provider selection in isolation.
  */
 function resolveLlm(

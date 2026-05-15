@@ -1,8 +1,8 @@
-# `ibid-service` — Implementation Plan
+# `citare-service` — Implementation Plan
 
 **Status:** ready for a separate-context agent when triggered (roadmap 6.12 is deferred on a divergence-bug / new-consumer / OSS-decision signal).
-**Spec:** `ibid-service-SPEC.md` (this directory, v0.1, 2026-04-19).
-**Authorship rules:** `ibid-service-AUTHORSHIP.md` (append-only).
+**Spec:** `citare-service-SPEC.md` (this directory, v0.1, 2026-04-19).
+**Authorship rules:** `citare-service-AUTHORSHIP.md` (append-only).
 
 This plan is mechanical. The implementing agent follows steps in order. MUST NOT consult any prior-work source (aside from what's explicitly shared out-of-band for deployment-shape reference).
 
@@ -12,20 +12,20 @@ This plan is mechanical. The implementing agent follows steps in order. MUST NOT
 
 **Estimate:** 8K tok_out, 15 calls, ≤ 45m.
 
-1. `mkdir -p ~/Projects/ibid-service && cd ~/Projects/ibid-service`
-2. `git init`. Default branch `main`. Remote `git@github.com:bwthomas/ibid-service.git` (public, MIT, matching `@bwthomas/ibid`).
+1. `mkdir -p ~/Projects/citare-service && cd ~/Projects/citare-service`
+2. `git init`. Default branch `main`. Remote `git@github.com:bwthomas/citare-service.git` (public, MIT, matching `citare`).
 3. Move the three spec files from `~/Documents/Claude/Specs/` into the repo root:
-   - `ibid-service-SPEC.md` → `SPEC.md`
-   - `ibid-service-AUTHORSHIP.md` → `AUTHORSHIP.md`
-   - `ibid-service-IMPLEMENTATION-PLAN.md` → `IMPLEMENTATION-PLAN.md`
+   - `citare-service-SPEC.md` → `SPEC.md`
+   - `citare-service-AUTHORSHIP.md` → `AUTHORSHIP.md`
+   - `citare-service-IMPLEMENTATION-PLAN.md` → `IMPLEMENTATION-PLAN.md`
 4. Append an entry to `AUTHORSHIP.md` documenting the move.
 5. Create `.gitignore`: `node_modules`, `dist`, `*.log`, `.DS_Store`.
 6. Create `package.json`:
-   - `name: "ibid-service"` (unscoped — not published to npm; consumers pull the Docker image or git clone).
+   - `name: "citare-service"` (unscoped — not published to npm; consumers pull the Docker image or git clone).
    - `private: true` (not published to npm).
    - `type: "module"`.
    - `engines: { node: ">=18" }`.
-   - `dependencies`: `fastify`, `@bwthomas/ibid@^0.1.0`, `pino`, `pino-pretty` (dev-only via opts), `lru-cache`.
+   - `dependencies`: `fastify`, `citare@^0.1.0`, `pino`, `pino-pretty` (dev-only via opts), `lru-cache`.
    - `devDependencies`: `typescript`, `tsup`, `vitest`, `@types/node`, `@fastify/type-provider-typebox` OR `zod` (body schemas).
    - Scripts: `build`, `test`, `typecheck`, `ci`, `dev` (`node --watch dist/server.js` after a watch-build), `start` (`node dist/server.js`).
 7. Add `tsconfig.json` — strict, ES2022, moduleResolution `bundler`, no emit.
@@ -41,7 +41,7 @@ This plan is mechanical. The implementing agent follows steps in order. MUST NOT
 ### 1.1 `src/server.ts`
 - Construct Fastify instance with pino logger (stdout JSON).
 - Register body-parser with 2MB limit.
-- Register auth hook: checks `X-Ibid-Auth` header against `IBID_SERVICE_AUTH` env var (constant-time compare). `/health` excluded.
+- Register auth hook: checks `X-Citare-Auth` header against `CITARE_SERVICE_AUTH` env var (constant-time compare). `/health` excluded.
 - Register request-id hook: generates short uuid per request; attaches to logger child.
 - Register metric hook: counts requests by endpoint + status; records duration histogram.
 - Wire all 9 routes (§4 of SPEC). Each route imports its handler from `src/routes/`.
@@ -50,12 +50,12 @@ This plan is mechanical. The implementing agent follows steps in order. MUST NOT
 
 ### 1.2 `src/routes/extract.ts` — `POST /extract`
 - Validate body shape by `kind` discriminator (use zod or typebox).
-- Call `ibid.extract(body)`.
+- Call `citare.extract(body)`.
 - Return the result as-is. Log one `requestCompleted` line with strategyName, confidence, durationMs.
 
 ### 1.3 `src/routes/normalize.ts` — `POST /normalize`
 - Validate `{ csl: object }`.
-- Call `ibid.merge({ csl: {}, ...empty }, { csl: body.csl, ...})` then post-process → actually a simpler call: create a trivial helper `normalizeCsl(csl, ibid)` that runs `filterFieldsByType`, then post-process rules.
+- Call `citare.merge({ csl: {}, ...empty }, { csl: body.csl, ...})` then post-process → actually a simpler call: create a trivial helper `normalizeCsl(csl, citare)` that runs `filterFieldsByType`, then post-process rules.
 
 ### 1.4 `src/routes/parse-ris.ts`, `parse-easybib.ts`, `upgrade-bib.ts`, `parse-authors.ts`, `parse-date.ts`
 - Each validates its body and calls the package's corresponding function.
@@ -63,7 +63,7 @@ This plan is mechanical. The implementing agent follows steps in order. MUST NOT
 
 ### 1.5 `src/routes/health.ts` — `GET /health`
 - No auth.
-- Returns `{ ok: true, version, ibidVersion, uptimeSeconds }`.
+- Returns `{ ok: true, version, citareVersion, uptimeSeconds }`.
 
 ### 1.6 `src/routes/metrics.ts` — `GET /metrics`
 - Auth required.
@@ -80,8 +80,8 @@ Commit: one per route (or bundle all in one "route scaffolding" commit).
 
 ### 2.1 `src/cache.ts`
 - Wrap `lru-cache` with a `CacheAdapter` interface matching the package SPEC §10.
-- Key format: `ibid:v1:{doi||canonical_url||isbn}`.
-- Passed to `createIbid({ cache })` during server startup.
+- Key format: `citare:v1:{doi||canonical_url||isbn}`.
+- Passed to `createCitare({ cache })` during server startup.
 - TTL: 24h per entry.
 
 ### 2.2 `src/upstream-budget.ts`
@@ -101,9 +101,9 @@ Commit: 3 files, 1-2 commits.
 
 **Estimate:** 5K tok_out, 10 calls, ≤ 30m.
 
-If `IBID_LLM_ANTHROPIC_API_KEY` is set at startup, construct the Anthropic LLM adapter via `@bwthomas/ibid/llm-anthropic` and pass it to `createIbid({ llm, ... })`. Otherwise omit.
+If `CITARE_LLM_ANTHROPIC_API_KEY` is set at startup, construct the Anthropic LLM adapter via `citare/llm-anthropic` and pass it to `createCitare({ llm, ... })`. Otherwise omit.
 
-Model default: `claude-haiku-4-5-20251001` (cheap + fast). Override via `IBID_LLM_ANTHROPIC_MODEL`.
+Model default: `claude-haiku-4-5-20251001` (cheap + fast). Override via `CITARE_LLM_ANTHROPIC_MODEL`.
 
 Commit: 1 small commit.
 
@@ -122,10 +122,10 @@ Commit: 1 small commit.
 ### 4.2 Integration tests (service + real package, no network)
 - Mock the package's HTTP clients (crossref/citoid/openlibrary) via `fetchFn` override.
 - `/extract` with `{kind: 'html', ...}` → full pipeline executes against stub DOM adapter + mocked fetch.
-- Cache: two identical requests → second is instant (detectable via `X-Ibid-Cache: hit` test header).
+- Cache: two identical requests → second is instant (detectable via `X-Citare-Cache: hit` test header).
 
 ### 4.3 End-to-end (opt-in)
-- `IBID_E2E=1 npm run test:e2e` — hits real CrossRef and Citoid.
+- `CITARE_E2E=1 npm run test:e2e` — hits real CrossRef and Citoid.
 - Skip in CI; run manually during load testing.
 
 Commit: one per test file (or bundle).
@@ -143,13 +143,13 @@ Commit: one per test file (or bundle).
 - Healthcheck via wget on `/health`.
 
 ### 5.2 `docker-compose.yml` (repo-local dev stack)
-- Single service `ibid`.
+- Single service `citare`.
 - Binds `.` into `/app` for development.
-- Env var `IBID_SERVICE_AUTH: dev-secret-32chars-at-least-please...`.
+- Env var `CITARE_SERVICE_AUTH: dev-secret-32chars-at-least-please...`.
 - Exposes 3000.
 
 ### 5.3 Downstream-consumer integration checklist
-- Provide an `INTEGRATION.md` at the repo root enumerating what a downstream consumer needs to wire: a docker-compose service entry, a reverse-proxy route (`/api/ibid/*` typical), a dev auth secret, and the `X-Ibid-Auth` header on outbound calls.
+- Provide an `INTEGRATION.md` at the repo root enumerating what a downstream consumer needs to wire: a docker-compose service entry, a reverse-proxy route (`/api/citare/*` typical), a dev auth secret, and the `X-Citare-Auth` header on outbound calls.
 - Keep consumer-specific config (service hostname, secret management, auth integration) out of this repo — the integration doc is a checklist, not a set of committed overrides.
 
 Commit: 2-3 commits (Dockerfile, compose, INTEGRATION.md).
@@ -167,7 +167,7 @@ Out of scope for the initial service build. When triggered:
 - Method parity with the service surface: `extract_from_url`, `extract_from_doi`,
   `parse_ris`, `upgrade_bib`, `normalize`, `parse_authors`, `parse_date`.
 - Mirror-mode flag — when on, the host app calls both its legacy pipeline
-  and the ibid-service client, logging divergence for rollout observability.
+  and the citare-service client, logging divergence for rollout observability.
 
 ### 6.2 Java client (host-app integration, out of scope for the service itself)
 - Analogous thin Apache HttpClient wrapper.
@@ -200,11 +200,11 @@ Roadmap 6.12 estimate was 77K / ≤6h 25m. This plan runs 54K for the service al
 
 ## Agent briefing (copy into the implementation-agent prompt)
 
-> You are implementing `ibid-service@0.1.0`. Spec at `SPEC.md`. Plan at `IMPLEMENTATION-PLAN.md`. You depend on `@bwthomas/ibid@^0.2.0` as an npm dependency and may read its published types. Deployment follows a standard thin-HTTP-wrapper pattern (Fastify on Node 18, Docker, reverse-proxy, container orchestrator). Do not read any prior-work source beyond what is explicitly shared with you.
+> You are implementing `citare-service@0.1.0`. Spec at `SPEC.md`. Plan at `IMPLEMENTATION-PLAN.md`. You depend on `citare@^0.2.0` as an npm dependency and may read its published types. Deployment follows a standard thin-HTTP-wrapper pattern (Fastify on Node 18, Docker, reverse-proxy, container orchestrator). Do not read any prior-work source beyond what is explicitly shared with you.
 >
 > First commit message: `Spec: SPEC.md v0.1 — see AUTHORSHIP.md for attribution.`
 >
-> Commit after every coherent unit (one per route file, one per test file, one for the Dockerfile). Push to `git@github.com:bwthomas/ibid-service.git`. Append `AUTHORSHIP.md` when complete with implementer, date, and commit range only. Full provenance detail is maintained privately.
+> Commit after every coherent unit (one per route file, one per test file, one for the Dockerfile). Push to `git@github.com:bwthomas/citare-service.git`. Append `AUTHORSHIP.md` when complete with implementer, date, and commit range only. Full provenance detail is maintained privately.
 
 ---
 

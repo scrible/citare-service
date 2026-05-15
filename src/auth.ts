@@ -12,12 +12,12 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 /**
- * Fastify preHandler hook that enforces `X-Ibid-Auth: <secret>`. Returns 401
+ * Fastify preHandler hook that enforces `X-Citare-Auth: <secret>`. Returns 401
  * on missing or incorrect header.
  */
 export function makeAuthHook(secret: string) {
   return async function authHook(req: FastifyRequest, reply: FastifyReply) {
-    const presented = req.headers["x-ibid-auth"];
+    const presented = req.headers["x-citare-auth"];
     if (typeof presented !== "string" || !safeEqual(presented, secret)) {
       return reply.code(401).send({ error: "unauthorized" });
     }

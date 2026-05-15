@@ -16,7 +16,7 @@ export const VariantSchema = z.object({
   name: z.string().min(1),
   /**
    * Provider flavor:
-   *  - "bedrock-invoke" → InvokeModel (Anthropic-only, via ibid's built-in
+   *  - "bedrock-invoke" → InvokeModel (Anthropic-only, via citare's built-in
    *    createBedrockLlm). Cheaper sig path for Claude models.
    *  - "bedrock-converse" → Converse API, model-agnostic (Nova, Llama, …).
    *  - "anthropic" → direct Anthropic API (needs ANTHROPIC_API_KEY).
@@ -30,7 +30,7 @@ export const VariantSchema = z.object({
   /** USD per 1M output tokens; used for cost aggregation in the scorer. */
   usdPerMtokOut: z.number().nonnegative().default(0),
   /**
-   * Optional prompt overrides. Keys are ibid surface names
+   * Optional prompt overrides. Keys are citare surface names
    * ("urlExtraction", "freetextRescue"). Values are system-prompt
    * strings or `null` to keep the library defaults. Not wired through
    * yet — reserved for host-app prompt tuning.
